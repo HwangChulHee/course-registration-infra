@@ -23,3 +23,6 @@
 .demo-tools:not([open]) > .demo-tools-content{display:none}
 
 .page-heading{margin-bottom:34px}
+
+.application-shell{border:0;margin:0;padding:0;min-width:0}
+.application-shell:disabled{cursor:progress}

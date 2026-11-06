@@ -1,0 +1,8 @@
+# Optional loopback-only ports for Vite/JDK development; not needed for normal Compose startup.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+  backend:
+    ports:
+      - "127.0.0.1:8081:8080"

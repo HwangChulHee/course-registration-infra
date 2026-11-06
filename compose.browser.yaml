@@ -1,0 +1,17 @@
+# Run only after the main Compose stack is healthy.
+name: course-registration-browser
+services:
+  browser-tests:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    environment:
+      E2E_BASE_URL: http://frontend
+    networks:
+      - application
+    volumes:
+      - ./.validation/browser:/app/test-results
+networks:
+  application:
+    external: true
+    name: course-registration_default

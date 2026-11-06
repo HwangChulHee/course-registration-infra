@@ -1,0 +1,48 @@
+name: course-registration
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: course_registration
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example and set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:postgresql://db:5432/course_registration
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LOCAL_SEED_PASSWORD: ${LOCAL_SEED_PASSWORD:?Set LOCAL_SEED_PASSWORD in .env}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      start_period: 40s
+      retries: 20
+    stop_grace_period: 30s
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:

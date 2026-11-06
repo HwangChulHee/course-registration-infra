@@ -1,0 +1,32 @@
+# Independent, disposable PostgreSQL for backend tests; never touches the application DB.
+name: course-registration-validation
+services:
+  test-db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: course_registration_test
+      POSTGRES_USER: ${POSTGRES_USER:?Set .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set .env}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  backend-tests:
+    image: maven:3.9.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - maven_test_cache:/root/.m2
+    environment:
+      DB_URL: jdbc:postgresql://test-db:5432/course_registration_test
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      test-db:
+        condition: service_healthy
+    command: ["mvn", "-B", "-ntp", "-s", "settings.xml", "verify"]
+volumes:
+  maven_test_cache:
