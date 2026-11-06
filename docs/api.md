@@ -9,12 +9,14 @@
 | POST | `/auth/login` | 로그인 JWT 발급 | 불필요 |
 | GET | `/registration/window` | 시작·종료·서버 시각 확인 | 로그인 |
 | POST | `/gate/tickets` | 1차 대기열 등록(중복 시 기존 ticket) | 로그인 |
-| GET | `/gate/tickets/me` | 내 대기 순서·입장 상태 | 로그인 |
+| GET | `/gate/tickets/me` | 현재 페이지 세션의 대기 순서·입장 상태 | 로그인 + 현재 ticket 증명 |
+| DELETE | `/gate/tickets/{ticketId}` | 1차 대기권 명시적 취소(새로고침·이탈 시 best effort) | 로그인 + 소유자/현재 ticket 검증 |
 | POST | `/gate/admissions` | 허가된 대기권으로 입장권 수령 | 로그인 + 허가 상태 |
 | GET | `/courses` | 강의 목록/정원/검색 | 로그인 + 입장권 |
 | GET | `/courses/{courseId}` | 강의 상세 | 로그인 + 입장권 |
 | POST | `/enrollment-requests` | 2차 신청 요청 접수 | 로그인 + 입장권 |
 | GET | `/enrollment-requests/{requestId}` | 처리 상태·결과 조회 | 본인 요청 |
+| POST | `/enrollment-requests/{requestId}/cancel` | 2차 미처리 ACCEPTED 요청 취소 시도 | 본인 요청 |
 | GET | `/enrollments/me` | 내 신청 강의 | 로그인 + 입장권 |
 | DELETE | `/enrollments/{enrollmentId}` | 신청 취소 | 본인 + 입장권 |
 | GET | `/actuator/health/readiness` | 헬스체크 | 내부/ALB 전용 |
@@ -34,7 +36,7 @@ Authorization: Bearer <jwt>
   "pollAfterMs": 2500
 }
 ```
-동일 사용자의 반복 요청은 새 순번을 만들지 않습니다. `position`은 시점별 근사치이며 응답에는 기계적인 정확한 입장 시각을 보장하지 않습니다.
+같은 페이지 세션의 중복 클릭은 기존 ticket을 반환합니다. **새로고침 후 재입장** 요청은 이전 WAITING ticket을 무효화하고 새 순번을 발급합니다. 페이지 메모리에만 저장하는 일회성 ticket 증명이 없어졌다면 과거 순번 복구를 허용하지 않습니다. `position`은 시점별 근사치이며 응답에는 기계적인 정확한 입장 시각을 보장하지 않습니다.
 
 ```json
 {
@@ -69,7 +71,12 @@ Location: /api/v1/enrollment-requests/<request-id>
 ```json
 {"requestId":"uuid","state":"SUCCEEDED","result":{"courseId":"uuid","enrollmentId":"uuid"}}
 ```
-최종 상태는 `SUCCEEDED | FULL | DUPLICATE | FAILED`. 네트워크 오류나 결과 조회 타임아웃은 자동으로 실패 확정하지 않으며 동일 requestId로 재조회합니다.
+최종 상태는 `SUCCEEDED | FULL | DUPLICATE | CANCELLED | FAILED`. 네트워크 오류나 결과 조회 타임아웃은 자동으로 실패 확정하지 않으며 동일 requestId로 재조회합니다.
+
+## 새로고침 및 취소 API 정책
+- 1차 S3: 페이지 unload 시 `DELETE /gate/tickets/{ticketId}`를 최선 노력으로 호출(예: keepalive 요청). 전송 보장 없음. lease/heartbeat 만료 및 새 입장 시 이전 ticket 원자 무효화를 함께 사용. 취소 성공 후 재입장은 반드시 맨 뒤 순번.
+- 2차 S5: `POST /enrollment-requests/{requestId}/cancel`은 **ACCEPTED → CANCELLED 조건부 상태 변경**에만 성공. Worker의 `ACCEPTED → PROCESSING` 선점과 DB에서 경합 안전하게 처리. 취소 성공 여부를 모르면 먼저 상태 조회; PROCESSING/완료 상태는 취소 실패 응답을 반환하며 요청을 계속 처리할 수 있음.
+- `GET /enrollment-requests/{requestId}`는 새로고침 뒤에도 결과 확인을 위해 유지하며, 화면 초기화가 예약 확정의 원자적 롤백을 의미하지 않음.
 
 ## HTTP 오류 가이드
 - `401`: 인증 필요/만료
