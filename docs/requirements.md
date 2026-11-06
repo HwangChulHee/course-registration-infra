@@ -4,13 +4,13 @@
 대규모 수강신청 트래픽에 대해 **AWS 컴퓨팅·DB 구성별 안정적인 처리량, 지연, 장애, 비용**을 계측하고 실험 결과에 근거해 아키텍처를 결정하는 포트폴리오.
 
 ## 확정된 진행 순서
-1. **Frontend Mock Prototype (현재):** 사용자 화면·흐름 구현 → 직접 조작·검토 → 사용자 승인.
-2. **Backend + Local (검토 이후):** Spring Boot + PostgreSQL, 실제 인증, 원자적 신청/취소, 동시성·정합성 테스트.
+1. **Frontend Mock Prototype (완료·승인):** 사용자 화면·흐름 구현 및 사용자 검토 완료 (커밋 40e8b79).
+2. **Backend + Local (현재 Codex 작업):** Spring Boot + PostgreSQL, 서버 인증, 원자적 신청/취소, Docker Compose 및 동시성·정합성 테스트. 세부 명세: [backend-local-integration.md](backend-local-integration.md).
 3. **AWS Baseline (후속):** ECS Fargate, ALB, RDS; 기본 관측/부하 시험.
 4. **Capacity & Cost (후속):** Task vCPU/메모리, Task 개수, DB·커넥션 풀, 사전 증설의 처리량·비용 비교.
 5. **Optimization & Operations (후속):** 병목이 확인될 때 개선, 장애 재현·문서화. Redis 큐는 **선택적 후보**, 자동 확장은 **필수 아님**.
 
-## 현재 프론트엔드 요구사항
+## 승인된 프론트엔드 요구사항 (완료된 단계)
 | ID | 기능 | 범위 |
 | --- | --- | --- |
 | FE-01 | Mock 회원가입/로그인/로그아웃 | 필수 |
@@ -25,7 +25,7 @@
 
 상세 구현·테스트 기준: [frontend-prototype.md](frontend-prototype.md).
 
-## Backend 단계 원칙 (아직 구현하지 않음)
+## Backend 단계 원칙 (현재 구현 대상)
 - 서버에서 인증/인가, 신청 기간을 검증하고 **정원 초과·동일 강의 중복 신청을 PostgreSQL 트랜잭션/제약으로 차단**.
 - 수강신청 성공과 취소가 일관적으로 반영되도록 구현하고, 재시도/동시성 문제를 검증.
 - Mock 저장소를 서버 API로 대체. FE 검토 이후 실제 엔드포인트와 DB 스키마를 확정.
@@ -40,4 +40,4 @@
 - 큐의 필요성은 병목/서비스 정책에 근거해 재검토하고, 1차/2차를 모두 구현하는 것을 목표로 고정하지 않음.
 
 ## 명시적 제외
-이번 FE 단계에서는 백엔드 코딩, API, Docker Compose, Redis, 큐, AWS 리소스 생성 및 실측 성과 주장 금지. 학점 제한·시간표 충돌·선수과목·결제·관리자·실제 대학 연동도 제외.
+현재 Local Backend 단계에서는 Redis, 큐, AWS 리소스 생성 및 실측 성과 주장 금지. 백엔드/API/Compose는 구현 대상. 학점 제한·시간표 충돌·선수과목·결제·관리자·실제 대학 연동도 제외.
