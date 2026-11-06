@@ -1,3 +1,9 @@
+# 보류된 설계 (Archive / Deferred)
+
+> **현재 구현 금지.** 이 문서는 초기 논의에서 작성한 1차·2차 Redis 대기열 설계 기록입니다. 현재 결정은 **프론트엔드 Mock → 검토·확정 → 동기식 Spring Boot/PostgreSQL 백엔드 → AWS 부하·비용 측정 → 필요할 때 대기열 검토**입니다. 아래 설명은 향후 후보이며 확정된 구현 요구사항이 아닙니다. 큐를 도입하게 된다면 '새로고침 시 기존 대기열 취소'라는 합의와 서버 처리 중 취소 불가능성도 재검토합니다. 현재 작업의 기준은 [Frontend Spec](frontend-prototype.md), [Requirements](requirements.md)입니다.
+
+---
+
 # 2단계 대기열 설계 (Draft v0.1)
 
 ## 배경
