@@ -1,41 +1,35 @@
 # Codex Repository Instructions
 
-## 프로젝트 진행 순서 (중요)
-이 저장소는 AWS 수강신청 인프라 포트폴리오입니다. **현재 첫 작업은 프론트엔드 Mock 프로토타입만 구현하는 것**입니다. 사용자가 직접 화면을 조작하고 흐름을 검토하여 확정한 뒤에만 백엔드와 AWS 작업을 진행합니다.
+## Current stage — Backend + Local Docker Compose integration
 
-## 반드시 먼저 읽을 문서
-1. `docs/frontend-prototype.md` — 프론트엔드 기능/시나리오/인수 기준의 단일 기준 문서
-2. `docs/user-flow.md` — 현재 사용자 흐름
-3. `docs/requirements.md` — Phase별 범위
-4. `README.md` — 전체 프로젝트 의도
+The user **approved the frontend** after commit [40e8b79](https://github.com/HwangChulHee/course-registration-infra/commit/40e8b79c298c0736cc1d463f54e73ce774c8d4a8). Do **not** reimplement/re-design it. The next job is **Spring Boot + PostgreSQL implementation, integration with the accepted frontend, and Docker Compose execution + verification**.
 
-`docs/api.md`, `docs/database.md`, `docs/queue-design.md`는 **현재 구현 기준이 아닌 보류/후속 설계 자료**입니다. 여기에 과거에 작성된 큐/엔드포인트를 자동으로 구현하지 마세요.
+**Source of truth for this stage: [docs/backend-local-integration.md](docs/backend-local-integration.md). Read it before editing code.**
 
-## 지금 구현할 것
-- `frontend/`에 React + TypeScript + Vite 앱 구성
-- 회원가입/로그인(명시적으로 Mock), 오픈 대기·입장(시연 제어), 강의 목록/검색, 신청·취소, 내 신청 내역, 상태별 알림
-- 가상 학생·강의(20~30개) 시드 데이터; 사용자별 신청 상태와 정원 표시의 일관성
-- 현재 사용자 여정이 데모에서 끝까지 동작하도록 구현
-- 화면·데이터 접근 인터페이스 분리(후속 API 교체 용이), 기본 오류/빈 상태/반응형 UI
-- `frontend/README.md`에 실행·시연·검증 방법 작성
+### Read in this order
+1. `docs/backend-local-integration.md` — implementation scope, interfaces, DB concurrency, Compose, exact acceptance checks
+2. `frontend/README.md` and current `frontend/src/` — accepted UI behavior and seed data
+3. `docs/user-flow.md` — accepted queue-free user flow
+4. `docs/requirements.md` — overall portfolio phases
+5. `README.md` — full context
 
-## 지금 구현하지 말 것
-- `backend/`, Java/Spring Boot, PostgreSQL, Redis, 대기열 UI/Worker, ECS/EKS/EC2, Terraform, k6, 실제 인증 서버
-- 사용자가 요청하지 않은 기능(학점 제한, 시간표, 관리자, 결제, 학사 연동)
-- 서버에 저장되거나 동시 요청 안전성이 확보됐다는 허위 표현
-- 기존의 과거 대기열 설계 문서를 구현 명세로 간주하는 행위
+`docs/frontend-prototype.md` documents the **completed previous phase**, not an instruction to stay mock-only.
+`docs/queue-design.md` is an **archived/deferred idea**. No Redis queue or waiting-room UI unless the user explicitly requests it.
+`docs/api.md` and `docs/database.md` contain **unfinalized previous sketches**; update them to reflect the actual implementation rather than blindly implementing obsolete structures.
 
-## UX 요구
-- 동작이 실제처럼 느껴지되 상단/설명에 **Demo / Mock Data**를 명시
-- 비밀번호 등은 진짜 계정처럼 보관하지 말 것; 계정 인증은 시연 전용
-- 오픈 시각을 기다릴 필요 없이 **시연용 시작 상태 전환** 제공
-- 대기열 없음: 입장 버튼을 누르면 곧바로 강의 목록으로 이동
-- 정원 마감, 중복 신청, 신청 성공, 취소 후 정원 회복을 직접 확인할 수 있게 구성
-- 새로고침 시 상태 보존은 프론트엔드 데모에 한해 로컬 저장을 활용할 수 있음. 과거 '대기열 새로고침 시 취소' 규칙은 현재 큐 미구현으로 적용하지 않음.
-- 데이터 조작을 재현할 수 있는 **데모 초기화** 기능 제공
+### Required work
+- Implement `backend/` with Java 21 + Spring Boot, Spring Security, PostgreSQL, Flyway migrations and tests.
+- Server-backed signup/login, server-validated registration window, course listing, enrollment, cancellation and own enrollments.
+- Database constraints and atomic transactions for full/duplicate/concurrent enrollments. Maintain consistency between active enrollments and counts.
+- Preserve frontend UI and make it use HTTP API, replacing mock enrollment storage.
+- Add Dockerfiles, root `compose.yaml`, `.env.example`, ignored secrets, healthchecks and a clear one-command local startup path.
+- Run available typecheck/tests/build, integration/concurrency checks and **actual** Compose startup/HTTP verification. Document accurate evidence and blockers in `docs/local-validation.md`.
 
-## 작업 종료 시 검증/보고
-1. 사용 가능한 환경에서 install/build/typecheck/lint 또는 테스트 실행
-2. 데모 시나리오: 가입/로그인 → 대기/입장 → 강의 검색/신청 → 중복·정원 마감 → 신청 내역/취소
-3. 변경 파일, 실행 방법, 검증 결과/한계를 간결히 보고
-4. API/DB/AWS 작업은 진행하지 말 것. 차기 단계는 사용자의 명시적 확정 뒤 진행.
+### Do not do
+- AWS resource provisioning, ECR push, ECS/EKS/EC2, Terraform, Redis, queues, k6 capacity benchmarking, reactive Auto Scaling, or incidental UI redesign.
+- Hardcode actual secrets or expose local test controls in production.
+- Claim tests or Docker Compose were run if they were not.
+- Change or remove unrelated files.
+
+### Done/report
+Provide a commit and explain: run steps, checks executed, concurrent final-seat result, persistence result, any blocked checks. If environment cannot run Docker, document limitations transparently; do not label it fully verified.
