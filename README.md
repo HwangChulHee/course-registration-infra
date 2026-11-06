@@ -1,65 +1,60 @@
 # Course Registration Infrastructure
 
-AWS ECS Fargate 기반의 **대규모 동시 접속 수강신청 서비스** 설계·운영 포트폴리오.
+대규모 동시 접속 대학 수강신청 서비스의 **AWS 인프라 처리 용량·안정성·비용을 실험으로 결정**하는 포트폴리오입니다.
 
-> **현재 상태: 설계 단계 (Design only)** — 애플리케이션 및 AWS 리소스는 아직 구현·배포하지 않았습니다. 아래의 수치와 임계값은 실측 성과가 아닌 실험 계획 또는 초기 가정입니다.
+> **현재 단계: Frontend Mock Prototype — 설계/구현 지침만 반영됨.** 프론트엔드, 백엔드 및 AWS 리소스는 아직 구현되지 않았습니다. 현재 문서의 기술 스택과 실험은 계획이며 실측 성과가 아닙니다.
 
-## 프로젝트 목적
-정해진 수강신청 시작 시간에 발생하는 동시 접속·조회·신청 트래픽을 재현하고, **2단계 대기열 도입 전후**의 처리량, 대기 시간, 오류율, DB 부하 및 비용을 정량적으로 비교합니다. ECS Fargate 확장, 모니터링, 장애 대응과 복구를 운영 관점에서 검증합니다.
+## 프로젝트의 핵심 질문
+수강신청 시작 시각에 집중되는 조회·신청 요청을 처리하려면 AWS 자원을 얼마나 확보해야 하며, CPU·메모리·Task 수·RDS 구성에 따른 성능과 비용은 어떻게 달라지는가?
 
-## 사용자 흐름
-회원가입/로그인 → 시작 대기 및 입장 버튼 → **1차 입장 대기열** → 강의 목록/신청 화면 → 신청 클릭 → **2차 신청 처리 대기열** → 성공·정원 마감·중복 결과 → 계속 신청/취소
+**우선순위:** 프론트엔드 사용자 흐름 검토 → 백엔드 기능·정합성 검증 → AWS 기준선 구축 → k6 부하 및 비용 측정 → 병목 근거에 따른 아키텍처 개선.
 
-- 강의 목록은 **1차 입장 허가 후에만** 표시합니다.
-- 신청 처리 완료를 기다리는 **2차 대기 화면**을 제공합니다.
-- 두 대기열은 서로 다른 목적을 지닙니다: 읽기 트래픽의 진입 제어 / DB 쓰기 트래픽 처리율 제어.
-- **새로고침 정책:** 1차 입장 대기 페이지 새로고침 시 기존 대기권은 무효화되고 재입장해야 하며, 순번은 맨 뒤에서 새로 부여합니다. 2차 신청 대기 페이지 새로고침 시 취소 가능한 미처리 요청은 취소를 시도하되, 이미 처리 중이거나 확정된 신청은 자동 취소되지 않습니다. 화면 초기화와 서버에서의 확정 취소를 구분합니다.
-- 대기열 ON/OFF 비교에서도 인증·정원·중복 방지 규칙은 똑같이 적용합니다.
+## 현재 Codex 작업 범위
+**React + TypeScript + Vite 프론트엔드만 구현**합니다. 로그인·회원가입, 입장 화면, 강의 목록·검색, 신청·취소, 내 신청 내역, 정원 마감/중복 안내까지 **Mock 데이터로 실제 조작 가능**해야 합니다. 백엔드, DB, Redis, AWS, 부하 테스트는 구현하지 않습니다.
 
-## 목표 기술 스택 (계획)
-| 계층 | 기술 | 목적 |
+상세 인수 조건: [Frontend Prototype Specification](docs/frontend-prototype.md) · 실행 지침: [AGENTS.md](AGENTS.md)
+
+## 사용자 흐름 (현재 MVP)
+회원가입/로그인(가상 인증) → 수강신청 오픈 대기/입장(시연용 시각 제어) → 강의 목록/검색 → 신청 및 결과 → 신청 내역/취소.
+
+- 한 학기, 사전 정의된 강의 20~30개.
+- **정원 초과 금지, 동일 학생의 동일 강의 중복 신청 금지**를 Mock 상태에서 보여줍니다. 실제 다중 사용자 동시성 안전성은 **백엔드 구축 후 PostgreSQL에서 검증**합니다.
+- 초기에 논의한 **1차 입장 대기열/2차 신청 처리 대기열은 모두 보류**합니다. 대기열 UI, Redis, 가짜 대기 시간은 현재 구현하지 않습니다.
+- 프론트엔드 시연에서 개시 시각은 조작할 수 있어야 하며 실제 학사 일정과 연결되지 않습니다.
+
+## 장기 기술 방향 (현재 구현 아님)
+| 단계 | 후보/확정 방향 | 목적 |
 | --- | --- | --- |
-| Frontend | React + TypeScript | 최소 수강신청 UI |
-| Backend | Java + Spring Boot | 인증·강의 조회·신청 |
-| Local | Docker Compose | 로컬 반복 실험 |
-| Container | Docker, ECR, ECS Fargate | 컨테이너 배포·확장 |
-| Database | PostgreSQL (AWS RDS) | 강의·수강 기록의 최종 정합성 |
-| Queue | Redis (AWS ElastiCache) | 입장 순서·신청 처리 큐 |
-| Delivery | S3, CloudFront, Route 53, ALB | 정적 파일·API 제공 |
-| Security | VPC, IAM, Security Groups, WAF, Secrets Manager | 경계·권한·비밀정보 |
-| Observability | CloudWatch, Grafana | 메트릭·로그·경보 |
-| Automation | Terraform, GitHub Actions | IaC 및 배포 |
-| Test | k6 | 부하 및 트래픽 시나리오 |
+| Frontend | React, TypeScript, Vite | 사용자 흐름 검토 |
+| Backend | Java, Spring Boot | 기능, 인증, 동시성 제어 |
+| Local DB | PostgreSQL, Docker Compose | 정합성·통합 테스트 |
+| AWS Compute | **ECS Fargate** (현재 기준선 선택) | Task CPU/메모리/개수에 따른 성능 측정 |
+| AWS Data | RDS PostgreSQL | DB 성능/연결 병목 |
+| AWS Entry | ALB; S3+CloudFront (추후) | API 라우팅 및 정적 배포 |
+| Observability | CloudWatch, Container Insights, Micrometer, Grafana | Task/JVM/API/DB 관측 |
+| IaC/Test | Terraform, k6 | 환경 재현 및 실험 |
+| Queue | Redis/ElastiCache (보류) | 실제 병목과 필요성이 입증된 경우만 재검토 |
 
-AWS 배치는 단일 리전, 2개 AZ를 목표로 하며 **멀티 리전 DR은 범위에서 제외**합니다. RDS 백업·PITR 복원과 ECS Task 장애 복구는 목표에 포함합니다.
+수강신청은 시작 시간을 예측할 수 있으므로 **사전 용량 확보/사전 증설**을 기준 전략으로 삼습니다. 트래픽 반응형 Auto Scaling은 필수 구현 항목이 아닙니다. ECS Service가 비정상 Task를 교체하는 기능은 트래픽 Auto Scaling과 별개입니다.
 
-## 설계 문서
-- [요구사항 및 범위](docs/requirements.md)
-- [화면 및 사용자 흐름](docs/user-flow.md)
-- [데이터 모델](docs/database.md)
-- [API 계약 초안](docs/api.md)
-- [2단계 대기열 설계](docs/queue-design.md)
+## 문서 목차
+- [Codex 작업 가이드](AGENTS.md)
+- [현재 프론트엔드 구현 명세](docs/frontend-prototype.md)
+- [프로젝트 요구사항·단계 구분](docs/requirements.md)
+- [현재 MVP 사용자 흐름](docs/user-flow.md)
+- [향후 DB 설계 초안 — 미확정](docs/database.md)
+- [향후 API 설계 초안 — 미확정](docs/api.md)
+- [향후 AWS 성능·비용 실험 설계](docs/performance-plan.md)
+- [보류: 과거 2단계 대기열 설계](docs/queue-design.md)
 
-## 실행 및 검증 계획
-1. 로컬 Docker Compose로 최소 기능 구현·동시성 테스트
-2. Terraform으로 AWS 구성 및 ECS Fargate 배포
-3. CloudWatch/Grafana에서 ECS·ALB·RDS·Redis·앱 메트릭 관측
-4. k6의 동일한 도착률·사용자 시나리오로 대기열 OFF/ON 비교
-5. ECS 확장 정책 및 사전 증설 효과 비교
-6. Task 종료, Redis 연결 장애, DB 복원 등을 통제된 환경에서 실험
-7. 실제 관측 결과를 기반으로 Runbook/Playbook, 사후 분석 및 비용 보고서 작성
+## 제외 범위 (현재)
+Spring Boot, PostgreSQL, Redis, 대기열, AWS, CI/CD 인프라, 실제 OAuth/SSO, 학점 제한·시간표 충돌·선수과목·결제·관리자 UI. 운영/보안 기능을 구현한 것처럼 표현하지 않습니다.
 
-**주요 측정치:** 사용자가 입장/신청 버튼을 누른 순간부터의 종단 간 p50/p95/p99, 요청 접수율, 완료율, 결과 지연, 오류율, RPS, 큐 적체, ECS CPU·메모리·Task 수, RDS 연결/지연, Redis 지연, 실험당 비용. 대기열 ON의 빠른 HTTP 202 응답만으로 성능이 개선되었다고 판단하지 않습니다.
-
-## 범위 제한
-한 학기, 사전 등록된 강의 20~30개, 기본 계정 인증, 강의 조회·신청·취소, 1·2차 대기열만 구현합니다. 결제, 학사 시스템 통합, 시간표 충돌, 학점 제한, 선수과목, 관리자 UI, 멀티 리전 DR은 제외합니다.
-
-## 보안·비용
-실제 학생 개인정보를 사용하지 않으며 테스트 계정과 가상 데이터를 사용합니다. 비밀번호는 해시 저장하고 비밀키/계정정보는 GitHub에 커밋하지 않습니다. 부하 테스트는 비용 경보·리소스 정리 계획을 갖춘 격리된 테스트 환경에서 실행합니다.
-
-## 상태
-- [x] 프로젝트 목적과 설계 초안 작성
-- [ ] 설계 검토·확정
-- [ ] 애플리케이션 및 로컬 환경 구축
-- [ ] AWS 인프라 배포
-- [ ] 부하·장애 실험 및 결과 문서화
+## 진행 상태
+- [x] 프론트엔드 우선 접근과 Codex 구현 범위 결정
+- [x] 구현 가이드·사용자 흐름·향후 실험 계획 문서화
+- [ ] **Codex: 프론트엔드 Mock 구현**
+- [ ] 사용자: 직접 조작 후 사용자 흐름 검토·확정
+- [ ] Codex: 확정된 흐름에 Spring Boot/PostgreSQL 연결
+- [ ] AWS 배포/부하·비용 측정
+- [ ] 실험 기반 최적화 및 운영 보고서
