@@ -23,6 +23,8 @@ def fmt(value,digits=1):
 
 
 def main():
+    if (OUT/'repeat-study/manifest.json').exists():
+        raise SystemExit('Original cohort is frozen after repeat study creation; use python3 scripts/report-repeat.py')
     DEST.mkdir(exist_ok=True)
     rows=[json.loads(line) for line in (OUT/'index.jsonl').read_text().splitlines()]
     sanitized=[]

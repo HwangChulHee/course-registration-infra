@@ -32,12 +32,24 @@ python3 load-tests/bench.py suite --repeats 3
 python3 load-tests/bench.py suite --high --repeats 3
 # 원래 E 고부하가 안전 중단됐다면 공통 저부하 자원 비교
 python3 load-tests/sizing.py --repeats 3
+# 최초 연구 exporter; 추가 연구 manifest가 있으면 아래 report-repeat.py 사용
 python3 scripts/report-bench.py
 python3 load-tests/bench.py demo-guard
 python3 load-tests/bench.py down
 ```
 
 위 두 suite 명령은 대안입니다. 둘 다 연속으로 실행할 필요는 없습니다. 실행 순서·입력 재고·독립 인증 fixture·CPU/메모리 비교·중단 기준·산출물은 [재현 안내](docs/load-test-results/reproduction.md)를 참고하세요. 고부하 실행은 목표 달성을 보장하지 않으며 실제 도착/완료 RPS와 FULL/DUPLICATE, 5xx, 드롭을 분리 기록합니다. `.bench-results/`는 토큰/환경변수를 포함하므로 커밋/공유하지 않습니다.
+
+## A–E 전체 추가 2회 반복 비교
+
+기존 데이터·앱 이미지·리소스·요청 패턴을 고정하고 56회 본 실험과 3회 smoke를 추가했습니다. [평균·중앙값·표준편차 및 실행 원장](docs/load-test-results/2026-11-06-repeat-results.md) · [재현성/병목 평가](docs/load-test-results/2026-11-06-repeat-analysis.md).
+
+```sh
+python3 load-tests/repeat_study.py --rounds 2 --high
+python3 scripts/report-repeat.py
+```
+
+기존 manifest와 원래 이미지/fixture가 필요하며 완료된 연구를 덮어쓰지 않습니다. 0.5 CPU의 높은 부하는 기존을 포함한 3회 모두 보호 중단됐고, 목표 시간창 미달도 재현됐습니다. 원본 보고서는 보존하며 후속 exporter는 위 `report-repeat.py`를 사용합니다. 자세한 조건과 NOT RUN은 비교 분석에 기록했습니다.
 
 ## 프로젝트의 핵심 질문
 수강신청 시작 시각에 집중되는 조회·신청 요청을 처리하려면 AWS 자원을 얼마나 확보해야 하며, CPU·메모리·Task 수·RDS 구성에 따른 성능과 비용은 어떻게 달라지는가?

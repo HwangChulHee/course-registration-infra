@@ -1,5 +1,9 @@
 # 로컬 부하 테스트 결과
 
+- [추가 전체 2회 평균·중앙·표준편차 비교](2026-11-06-repeat-results.md)
+- [추가 반복 재현성/병목 분석](2026-11-06-repeat-analysis.md)
+- [추가 실행별 정제 JSON](2026-11-06-repeat-runs.json)
+
 - [실제 A–E 실행 표](2026-11-06-results.md)
 - [병목 분석 및 환경 한계](2026-11-06-analysis.md)
 - [비밀 값 없는 실행별 JSON](2026-11-06-runs.json)
@@ -10,7 +14,8 @@
 보고서 생성:
 
 ```sh
-python3 scripts/report-bench.py
+# 추가 연구 이후 원본 cohort는 고정하고 비교 보고서만 갱신
+python3 scripts/report-repeat.py
 ```
 
 보고서는 allow-list 필드만 내보내며 학생별 bearer 토큰, 비밀번호, auth_sessions 해시, 환경 파일을 내보내지 않습니다. DB 예약 점유와 실제 활성 신청은 구분합니다.
