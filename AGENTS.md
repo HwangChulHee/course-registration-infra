@@ -1,35 +1,34 @@
 # Codex Repository Instructions
 
-## Current stage — Backend + Local Docker Compose integration
+## Current stage — Local k6 benchmark and event simulation
 
-The user **approved the frontend** after commit [40e8b79](https://github.com/HwangChulHee/course-registration-infra/commit/40e8b79c298c0736cc1d463f54e73ce774c8d4a8). Do **not** reimplement/re-design it. The next job is **Spring Boot + PostgreSQL implementation, integration with the accepted frontend, and Docker Compose execution + verification**.
+Frontend UX was approved at commit `40e8b79`; backend, PostgreSQL and Docker Compose integration were implemented and locally validated in commit `f77cd6e`. **Do not redo these completed stages.**
 
-**Source of truth for this stage: [docs/backend-local-integration.md](docs/backend-local-integration.md). Read it before editing code.**
+**Primary current specification: [docs/local-load-tests.md](docs/local-load-tests.md).** Read it first and implement its A–E scenarios, actually execute safe local runs, and record reproducible measured results.
 
-### Read in this order
-1. `docs/backend-local-integration.md` — implementation scope, interfaces, DB concurrency, Compose, exact acceptance checks
-2. `frontend/README.md` and current `frontend/src/` — accepted UI behavior and seed data
-3. `docs/user-flow.md` — accepted queue-free user flow
-4. `docs/requirements.md` — overall portfolio phases
-5. `README.md` — full context
+### Read first
+1. `docs/local-load-tests.md` — current task details and acceptance criteria
+2. `docs/api.md` + `docs/database.md` — actual synchronous API, session authentication, occupancy model
+3. `compose.yaml`, `backend/`, `docs/local-validation.md` — current working local services and validated behavior
+4. `docs/performance-plan.md` — later AWS experiments; do not deploy yet
+5. `README.md` — project goal and status
 
-`docs/frontend-prototype.md` documents the **completed previous phase**, not an instruction to stay mock-only.
-`docs/queue-design.md` is an **archived/deferred idea**. No Redis queue or waiting-room UI unless the user explicitly requests it.
-`docs/api.md` and `docs/database.md` contain **unfinalized previous sketches**; update them to reflect the actual implementation rather than blindly implementing obsolete structures.
+`docs/backend-local-integration.md` and `docs/frontend-prototype.md` describe already-completed work. `docs/queue-design.md` is archived and deferred.
 
-### Required work
-- Implement `backend/` with Java 21 + Spring Boot, Spring Security, PostgreSQL, Flyway migrations and tests.
-- Server-backed signup/login, server-validated registration window, course listing, enrollment, cancellation and own enrollments.
-- Database constraints and atomic transactions for full/duplicate/concurrent enrollments. Maintain consistency between active enrollments and counts.
-- Preserve frontend UI and make it use HTTP API, replacing mock enrollment storage.
-- Add Dockerfiles, root `compose.yaml`, `.env.example`, ignored secrets, healthchecks and a clear one-command local startup path.
-- Run available typecheck/tests/build, integration/concurrency checks and **actual** Compose startup/HTTP verification. Document accurate evidence and blockers in `docs/local-validation.md`.
+### Build and validate now
+- Create **isolated** benchmark Compose setup and DB; never reset/delete the existing demo DB/volume.
+- Add reproducible k6 scripts for A read performance, B committed writes, C1–C5 popular-course contention, D timed enrollment opening event, E backend CPU/memory comparison.
+- Use synthetic users with independent tokens, deterministic initialization and explicit DB invariant checks. Reproduce initial data before each comparable run.
+- Record offered/achieved RPS, p50/p95/p99, HTTP/business outcomes, finished operations, k6 client drops, JVM/DB/container indicators, host resources, settings and iterations.
+- Begin with safe load, scale gradually, and stop on resource exhaustion. Keep high-load cases explicitly opt-in.
+- Actually run and report what succeeded/failed/was blocked. Add documented reproducible commands, sanitized reports and clear limitations.
 
-### Do not do
-- AWS resource provisioning, ECR push, ECS/EKS/EC2, Terraform, Redis, queues, k6 capacity benchmarking, reactive Auto Scaling, or incidental UI redesign.
-- Hardcode actual secrets or expose local test controls in production.
-- Claim tests or Docker Compose were run if they were not.
-- Change or remove unrelated files.
+### Do not
+- AWS/ECR/ECS/RDS provisioning, Terraform, Redis queues, automatic scaling, public load testing, feature redesign, or fabricated numbers.
+- Long-term Grafana/CloudWatch retention/alerting; that is a **future operational phase**. Collect enough metrics now to support later comparisons.
+- Claim 1,000 simultaneous requests if k6 dropped iterations or did not achieve the offered schedule.
+- Treat expected `FULL`/`DUPLICATE` 409 responses as server 5xx.
+- Touch unrelated Docker volumes, use `docker system prune`, leak credentials, or label unexecuted checks as PASS.
 
-### Done/report
-Provide a commit and explain: run steps, checks executed, concurrent final-seat result, persistence result, any blocked checks. If environment cannot run Docker, document limitations transparently; do not label it fully verified.
+### Done
+Commit scripts/config/docs; report exact command(s), run context, A–E measurements or precise NOT RUN reasons, PostgreSQL invariant results, CPU/memory/DB bottleneck hypotheses, and follow-up experiments. Keep local validated app intact.
