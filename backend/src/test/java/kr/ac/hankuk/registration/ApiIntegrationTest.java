@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties="app.local-seed-password=Integration-Only-Password")
-@ActiveProfiles("local")
+@ActiveProfiles({"local","benchmark"})
 class ApiIntegrationTest {
     @LocalServerPort int port;
     @Autowired JdbcTemplate db;
@@ -56,6 +56,16 @@ class ApiIntegrationTest {
         assertEquals("NOT_OPEN",call("POST","/enrollments",token,Map.of("courseId","course-2")).body.get("code").asText());
         assertEquals(204,call("POST","/auth/logout",token,null).status);
         assertEquals(401,call("GET","/auth/me",token,null).status);
+    }
+    @Test void benchmarkMetricsAreAuthenticatedAndAllowListed() throws Exception {
+        assertEquals(401,call("GET","/benchmark/metrics",null,null).status);
+        var result=call("GET","/benchmark/metrics",user(),null);
+        assertEquals(200,result.status);
+        var names=new HashSet<String>();
+        result.body.get("meters").forEach(m->names.add(m.get("name").asText()));
+        assertTrue(names.contains("jvm.memory.used"));
+        assertTrue(names.contains("hikaricp.connections.active"));
+        assertFalse(result.body.toString().contains("password"));
     }
     @Test void normalizedEmailPasswordAndInvalidInput() throws Exception {
         String email=UUID.randomUUID()+"@integration.test";

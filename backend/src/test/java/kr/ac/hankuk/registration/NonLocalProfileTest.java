@@ -19,6 +19,7 @@ class NonLocalProfileTest {
     @Test void localControlsNotRegistered() throws Exception {
         assertTrue(context.getBeansOfType(LocalController.class).isEmpty());
         assertTrue(context.getBeansOfType(LocalSeed.class).isEmpty());
+        assertTrue(context.getBeansOfType(BenchmarkMetricsController.class).isEmpty());
         var client=HttpClient.newHttpClient();
         var window=client.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/api/v1/registration/window")).build(),HttpResponse.BodyHandlers.ofString());
         assertEquals(200,window.statusCode()); assertTrue(window.body().contains("\"localControls\":false"));

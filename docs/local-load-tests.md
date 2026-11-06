@@ -1,6 +1,6 @@
 # Local Load Testing A–E — Codex implementation specification
 
-> **Current phase (2026-11-06):** design k6 benchmark harness, execute local Docker Compose tests, preserve measured evidence. Prior local functional/integration testing completed in commit `f77cd6e`. This document defines new work; **no A–E measurements exist yet**. AWS deployment, actual production traffic, full historical monitoring/alerting and Redis queue are **deferred**.
+> **Current phase (2026-11-06):** design k6 benchmark harness, execute local Docker Compose tests, preserve measured evidence. Prior local functional/integration testing completed in commit `f77cd6e`. The A–E harness has now been implemented and measured; see [actual results and safety limits](load-test-results/2026-11-06-analysis.md). The original E high schedule stopped safely and is explicitly separated from the completed lower-load comparison. AWS deployment, actual production traffic, full historical monitoring/alerting and Redis queue are **deferred**.
 
 ## Goal
 Measure the performance and limits of the **same** React + Spring Boot + PostgreSQL application before AWS. Distinguish frontend functionality, API throughput, database contention, and local host bottlenecks. No unsupported performance or cloud sizing claims.
@@ -53,3 +53,7 @@ All rates and user counts below are **initial proposed targets, not observed res
 
 ## Later (not this task)
 On AWS: ECS Fargate + ALB + RDS and the **same** scenarios to compare true resource sizing and total cost. Afterwards: operational observability, retained metrics/logs/traces, alerts, event postmortems and reproducible improvements. The local experiment's evidence should remain available for these comparisons.
+
+## Implemented run evidence (2026-11-06)
+
+See [results](load-test-results/2026-11-06-results.md), [analysis / NOT RUN entries](load-test-results/2026-11-06-analysis.md), and [reproduction commands](load-test-results/reproduction.md). 82 matrix runs plus 3 final smoke runs were executed. All DB structural/count checks passed; one half-CPU run stopped at the dropped-iteration threshold. This is not a claim that every proposed target or the original high E matrix completed.

@@ -1,0 +1,7 @@
+services:
+  backend:
+    cpus: 2
+    mem_limit: 4g
+    memswap_limit: 4g
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx3072m -XX:ActiveProcessorCount=2

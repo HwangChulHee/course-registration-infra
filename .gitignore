@@ -6,3 +6,7 @@
 **/dist/
 .validation/
 *.log
+
+.bench-results/
+__pycache__/
+*.pyc

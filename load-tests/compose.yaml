@@ -1,0 +1,71 @@
+name: course-registration-bench
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: course_registration_bench
+      POSTGRES_USER: bench_app
+      POSTGRES_PASSWORD: ${BENCH_DB_PASSWORD:?Use python3 load-tests/bench.py init}
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "track_io_timing=on"]
+    volumes:
+      - benchmark_data:/var/lib/postgresql/data
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  backend:
+    image: course-registration-benchmark-backend:local
+    build:
+      context: ../backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local,benchmark
+      DB_URL: jdbc:postgresql://db:5432/course_registration_bench
+      DB_USER: bench_app
+      DB_PASSWORD: ${BENCH_DB_PASSWORD}
+      LOCAL_SEED_PASSWORD: ${BENCH_SEED_PASSWORD:?Use benchmark env only}
+      JAVA_TOOL_OPTIONS: -Xms128m -XX:MaxRAMPercentage=75.0
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 3s
+      timeout: 5s
+      start_period: 30s
+      retries: 40
+  frontend:
+    image: course-registration-benchmark-frontend:local
+    build:
+      context: ../frontend
+    ports:
+      - "127.0.0.1:18080:80"
+    cpus: 1
+    mem_limit: 256m
+    memswap_limit: 256m
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  k6:
+    image: grafana/k6:0.57.0
+    profiles: [tools]
+    user: "0:0"
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    volumes:
+      - ./k6:/scripts:ro
+      - ../.bench-results:/artifacts
+    environment:
+      BASE_URL: http://frontend
+volumes:
+  benchmark_data:
+    name: course-registration-bench_data

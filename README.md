@@ -2,7 +2,7 @@
 
 대규모 동시 접속 대학 수강신청 서비스의 **AWS 인프라 처리 용량·안정성·비용을 실험으로 결정**하는 포트폴리오입니다.
 
-> **현재 단계: 로컬 기능·동시성 검증 완료, k6 부하 테스트 A–E 준비.** 승인된 프론트엔드를 유지하면서 Spring Boot/PostgreSQL을 연결했습니다. 실제 통합·동시성·재시작 검증 결과는 [로컬 검증 기록](docs/local-validation.md)을 참고하세요. AWS 리소스 및 성능·비용 측정은 아직 수행하지 않았습니다.
+> **현재 단계: 로컬 k6 A–E 실측 및 안전 범위의 자원 비교 완료.** 승인된 프론트엔드를 유지하면서 Spring Boot/PostgreSQL을 연결했습니다. 실제 통합·동시성·재시작 검증 결과는 [로컬 검증 기록](docs/local-validation.md)을 참고하세요. AWS 리소스 및 성능·비용 측정은 아직 수행하지 않았습니다.
 
 ## 로컬 실행
 
@@ -20,13 +20,32 @@ docker compose ps
 
 검증 재현·환경변수·제약·종료 방법: [docs/local-validation.md](docs/local-validation.md).
 
+## 독립 로컬 k6 벤치마크
+
+기존 데모와 별도 프로젝트/볼륨을 사용하는 A–E 하네스입니다. 실제 수치는 [측정 표](docs/load-test-results/2026-11-06-results.md), [분석 및 한계](docs/load-test-results/2026-11-06-analysis.md)에 기록합니다.
+
+```sh
+python3 load-tests/bench.py init
+python3 load-tests/bench.py smoke
+python3 load-tests/bench.py suite --repeats 3
+# 여유 리소스 확인 후에만 1,000명 단계 활성화
+python3 load-tests/bench.py suite --high --repeats 3
+# 원래 E 고부하가 안전 중단됐다면 공통 저부하 자원 비교
+python3 load-tests/sizing.py --repeats 3
+python3 scripts/report-bench.py
+python3 load-tests/bench.py demo-guard
+python3 load-tests/bench.py down
+```
+
+위 두 suite 명령은 대안입니다. 둘 다 연속으로 실행할 필요는 없습니다. 실행 순서·입력 재고·독립 인증 fixture·CPU/메모리 비교·중단 기준·산출물은 [재현 안내](docs/load-test-results/reproduction.md)를 참고하세요. 고부하 실행은 목표 달성을 보장하지 않으며 실제 도착/완료 RPS와 FULL/DUPLICATE, 5xx, 드롭을 분리 기록합니다. `.bench-results/`는 토큰/환경변수를 포함하므로 커밋/공유하지 않습니다.
+
 ## 프로젝트의 핵심 질문
 수강신청 시작 시각에 집중되는 조회·신청 요청을 처리하려면 AWS 자원을 얼마나 확보해야 하며, CPU·메모리·Task 수·RDS 구성에 따른 성능과 비용은 어떻게 달라지는가?
 
-**우선순위:** 프론트엔드 검토(완료) → 로컬 기능·정합성 검증(완료) → **로컬 k6 A–E 부하·오픈 이벤트 실험(다음)** → AWS 기준선 구축 → 동일 부하 조건에서 성능·비용 측정 → 장기 관측·사후 개선.
+**우선순위:** 프론트엔드 검토(완료) → 로컬 기능·정합성 검증(완료) → 로컬 k6 A–E 실험·안전 중단/대체 부하 기록(완료) → AWS 기준선 구축 → 동일 부하 조건에서 성능·비용 측정 → 장기 관측·사후 개선.
 
 ## 현재 Codex 작업 범위
-프론트엔드 승인 및 로컬 Spring Boot + PostgreSQL + Compose 통합 검증은 완료되었습니다. **지금은 로컬 k6 부하 테스트 A–E를 위한 독립 벤치마크 환경 구축, 시나리오 실행, 시스템 메트릭/결과 기록**이 목표입니다. 아직 수치가 측정된 것은 아닙니다. 기존 데모 DB/볼륨을 손대지 않습니다. AWS, Redis 대기열, 장기 관측·알림은 후속 단계입니다.
+프론트엔드 승인 및 로컬 Spring Boot + PostgreSQL + Compose 통합 검증은 완료되었습니다. **지금은 로컬 k6 부하 테스트 A–E를 위한 독립 벤치마크 환경 구축, 시나리오 실행, 시스템 메트릭/결과 기록**이 목표입니다. 실제 실행 수치와 목표 미달·중단·미실행 항목은 [결과 분석](docs/load-test-results/2026-11-06-analysis.md)에 구분했습니다. 기존 데모 DB/볼륨을 손대지 않습니다. AWS, Redis 대기열, 장기 관측·알림은 후속 단계입니다.
 
 **Codex 현행 명세:** [Local Load Testing A–E](docs/local-load-tests.md) · [AGENTS.md](AGENTS.md)
 
@@ -74,7 +93,7 @@ Redis, 대기열, AWS 배포, CI/CD 인프라, 실제 OAuth/SSO, 학점 제한·
 - [x] **Codex: 프론트엔드 Mock 구현**
 - [x] 사용자: 프론트엔드 직접 검토·승인 (커밋 40e8b79)
 - [x] Codex: Spring Boot/PostgreSQL 연결, Docker Compose 구동, 동시성/영속성 검증
-- [ ] **로컬 k6 A–E 부하·오픈 이벤트 실험 및 결과 기록**
+- [x] **로컬 k6 A–E 실행·안전 중단/대체 부하·결과 기록**
 - [ ] AWS 배포/동일 시나리오 성능·비용 측정
 - [ ] 장기 모니터링, 트래픽 이력·알림·사후 분석
 - [ ] 실험 기반 최적화 및 운영 보고서
